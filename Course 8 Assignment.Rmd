@@ -1,0 +1,139 @@
+---
+title: "Course Project for Module 8 - Practical Machine Learning - Leona"
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+library(knitr)
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+
+Background
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset).
+
+R Packages Required for Assignment
+The following packages are downloaded and installed.
+```{r ggplot}
+library(caret); library(lattice); library(rpart); library(rpart.plot); library(randomForest); library(rattle)
+```
+
+Data
+The training data for this project are available here:
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv
+
+The test data are available here:
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
+
+The data for this project come from this source: http://groupware.les.inf.puc-rio.br/har. If you use the document you create for this class for any purpose please cite them as they have been very generous in allowing their data to be used for this kind of assignment.
+
+Submission Requirements
+The goal of the project is to predict the manner in which the group of enthusiats did the exercise. This is the "classe" variable in the training set. This report describes how the model is built your model, cross validation done, and the expected out of sample error. The prediction model also used to predict different test cases.
+
+Cross-validation
+The training data is randomly partitioned into two sub-samples without replacement called trainingSet1 and testingSet1 forming 60% and 40% respectively of the original pml-training.csv data provided. 
+
+Two models, namely Decision Tree and Random Forest will be fitted on the trainingSet1 data and then tested on the testingSet1 data. The most accurate model will be used to test the original pml-testing.csv data set.
+
+Expected Out-of-Sample Error
+The expected out-of-sample error will be based on the accuracy i.e. the proportion of correctly classified observations against the total samples in the testingSet1 data. 
+
+Data Processing
+
+The data is downloaded directly from the link provided. The seed for the codes was set to allow reproducibility of results.
+```{r Data Processing}
+
+set.seed(1234567)
+trainingDataUrl <- "http://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+testingDataUrl <- "http://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+
+trainData <- "./data/pml-training.csv"
+testData  <- "./data/pml-testing.csv"
+
+if (!file.exists("./data")) {
+        dir.create("./data")
+}
+if (!file.exists(trainData)) {
+        download.file(trainingDataUrl, destfile = trainData, method = "curl")
+}
+if (!file.exists(testData)) {
+        download.file(testingDataUrl, destfile = testData, method = "curl")
+}
+
+rm(trainingDataUrl)
+rm(testingDataUrl)
+```
+
+Cells constaining NA, #DIV0! or are blank and not relevant for the analysis are all changed to NA. They are then removed to reduce the size of the data to reduce the workload during analysis. Columns one to seven which are determined to be also not relevant were removed.
+
+```{r}
+trainSet <- read.csv(trainData, na.strings = c("NA", "#DIV0!", ""))
+testSet <- read.csv(testData, na.strings = c("NA", "#DIV0!", ""))
+
+rm(trainData)
+rm(testData)
+
+dim(trainSet)
+dim(testSet)
+
+names(trainSet)
+
+trainSet <- trainSet[,colSums(is.na(trainSet)) == 0]
+testSet <- testSet[,colSums(is.na(testSet)) == 0]
+
+dim(trainSet)
+dim(testSet)
+
+trainSet <- trainSet[,-c(1:7)]
+testSet <- testSet[,-c(1:7)]
+
+dim(trainSet)
+dim(testSet)
+```
+
+The data is then partitioned 60% and 40% respectively for training and test sets. A plot showing a frequency breakdown on the various movements of A, B, C, D and E showing classe A and D with the highest and lowest frequencies.
+
+```{r}
+trainingSet <- createDataPartition(y=trainSet$classe, p = 0.6, list=FALSE)
+
+trainingSet1 <- trainSet[trainingSet, ]
+testSet1 <- trainSet[-trainingSet, ]
+
+plot(trainingSet1$classe, col ="wheat", main = "trainingSet1 Classe Levels", xlab = "classe", ylab = "Frequency")
+
+```
+
+First Model - Decision Tree
+The Decision Tree model was created and the result yielded an accuracy of 74%. In addition, the Decision Tree plot using fancyRpartPlot was created to look at the Decision Tree set up.
+
+```{r}
+modelTree <- rpart(classe ~ ., data = trainingSet1, method = "class")
+predictTree <- predict(modelTree, testSet1, type = "class")
+fancyRpartPlot(modelTree)
+confusionMatrix(predictTree, testSet1$classe)
+```
+
+Second Model - Random Forest
+The Random Forest model was created and the result yielded an accuracy of 99%.
+
+```{r}
+modelRandomForest <- randomForest(classe ~ . , data = trainingSet1, method = "class")
+predictRandomForest <- predict(modelRandomForest, testSet1, type = "class")
+confusionMatrix(predictRandomForest, testSet1$classe)
+
+```
+
+The model with the better accuracy, Random Forest was used to predict the testSet provided originally. The expected out-of-sample error is estimated at 0.008. The output based on the predictRandomForest model on the original pml-testing.csv data is given below.
+
+```{r}
+predictingRF <- predict(modelRandomForest, testSet, type = "class")
+predictingRF
+```
+
+
+
+
